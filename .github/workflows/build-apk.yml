@@ -4,10 +4,10 @@ on:
   push:
     branches: [ main, master ]
   pull_request:
-  workflow_dispatch:
+  workflow_dispatch:   # lets you run it manually from the Actions tab
 
 permissions:
-  contents: write
+  contents: write      # needed to publish the APK in Releases
 
 jobs:
   build:
@@ -27,14 +27,24 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+      - name: Find project folder
+        id: find
+        run: |
+          G=$(find . -name gradlew -not -path "*/node_modules/*" | head -1)
+          if [ -z "$G" ]; then
+            echo "gradlew nahi mili. Repo ka structure:"; ls -R | head -50; exit 1
+          fi
+          DIR=$(dirname "$G")
+          echo "Project folder: $DIR"
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          chmod +x "$G"
 
       - name: Build debug APK
+        working-directory: ${{ steps.find.outputs.dir }}
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk CompleteEnglishGrammar.apk
+        run: cp "${{ steps.find.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk" CompleteEnglishGrammar.apk
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
